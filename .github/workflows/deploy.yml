@@ -39,7 +39,7 @@ jobs:
           target: "/tmp/"
           strip_components: 0
 
-      - name: Extract and restart PM2
+      - name: Extract and start server
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -57,9 +57,9 @@ jobs:
               apt-get install -y nodejs
             fi
 
-            # Install PM2 if not found
-            if ! command -v pm2 &> /dev/null; then
-              npm install -g pm2
+            # Install serve if not found
+            if ! command -v serve &> /dev/null; then
+              npm install -g serve
             fi
 
             # Stop old PM2 process if running
@@ -80,9 +80,8 @@ jobs:
             # Cleanup tarball
             rm /tmp/dist.tar.gz
 
-            # Navigate to app dir and restart PM2
+            # Navigate to app dir and start with PM2 using serve
             cd $APP_DIR
             pm2 delete autolift-dashboard 2>/dev/null || true
-            pm2 start npm --name autolift-dashboard -- start
+            pm2 start npx --name autolift-dashboard -- serve -s dist -l 4173
             pm2 save
-            pm2 restart autolift-dashboard
