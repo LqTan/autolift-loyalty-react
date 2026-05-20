@@ -51,6 +51,11 @@ jobs:
 
             APP_DIR="/var/www/autolift-dashboard"
 
+            # Install PM2 if not found
+            if ! command -v pm2 &> /dev/null; then
+              npm install -g pm2
+            fi
+
             # Stop old PM2 process if running
             pm2 stop autolift-dashboard 2>/dev/null || true
 
