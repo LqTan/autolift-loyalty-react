@@ -1,4 +1,4 @@
-import { Bell, User, LogOut } from "lucide-react";
+import { Bell, User, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,9 +14,10 @@ import { useNavigate } from "react-router-dom";
 
 interface HeaderProps {
   username?: string;
+  onMenuClick?: () => void;
 }
 
-export function Header({ username = "Admin" }: HeaderProps) {
+export function Header({ username = "Admin", onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const token = getAuthToken();
 
@@ -26,8 +27,13 @@ export function Header({ username = "Admin" }: HeaderProps) {
   };
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-card px-6">
+    <header className="flex h-14 items-center justify-between border-b bg-card px-4 md:px-6">
       <div className="flex items-center gap-4">
+        {onMenuClick && (
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={onMenuClick}>
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
         <h1 className="text-lg font-medium">Admin Dashboard</h1>
       </div>
 

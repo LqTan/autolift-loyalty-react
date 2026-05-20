@@ -14,6 +14,8 @@ import {
   Boxes,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -33,66 +35,98 @@ const navItems = [
   { to: "/sandbox", icon: Boxes, label: "Sandbox" },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside
-      className={cn(
-        "relative flex h-screen flex-col border-r bg-card transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
+    <>
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onClose}
+        />
       )}
-    >
-      <div className="flex h-14 items-center border-b px-4">
-        {!collapsed && (
-          <span className="font-heading text-lg font-semibold">AutoLift</span>
+
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-50 flex h-full flex-col border-r bg-card transition-all duration-300 md:static md:z-0",
+          collapsed ? "w-16" : "w-64",
+          open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
-        {collapsed && <span className="font-heading text-lg font-semibold">A</span>}
-      </div>
-
-      <nav className="flex-1 overflow-y-auto p-2">
-        <ul className="space-y-1">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <li key={to}>
-              <NavLink
-                to={to}
-                className={({ isActive }) =>
-                  cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                    isActive
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground",
-                    collapsed && "justify-center px-2"
-                  )
-                }
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{label}</span>}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
-
-      <Separator />
-
-      <div className="p-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className={cn("w-full", collapsed ? "px-2" : "justify-start")}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <>
-              <ChevronLeft className="h-4 w-4" />
-              <span className="ml-2">Collapse</span>
-            </>
+      >
+        <div className="flex h-14 items-center justify-between border-b px-4">
+          {!collapsed && (
+            <span className="font-heading text-lg font-semibold">AutoLift</span>
           )}
-        </Button>
-      </div>
-    </aside>
+          {collapsed && <span className="font-heading text-lg font-semibold">A</span>}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={onClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto p-2">
+          <ul className="space-y-1">
+            {navItems.map(({ to, icon: Icon, label }) => (
+              <li key={to}>
+                <NavLink
+                  to={to}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                      isActive
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground",
+                      collapsed && "justify-center px-2"
+                    )
+                  }
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span>{label}</span>}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <Separator />
+
+        <div className="hidden p-2 md:block">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className={cn("w-full", collapsed ? "px-2" : "justify-start")}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronLeft className="h-4 w-4" />
+                <span className="ml-2">Collapse</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+export function MobileMenuButton({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="ghost" size="icon" className="md:hidden" onClick={onClick}>
+      <Menu className="h-5 w-5" />
+    </Button>
   );
 }
