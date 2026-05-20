@@ -98,8 +98,8 @@ export default function CampaignsPage() {
           <p className="text-muted-foreground">Manage promotion campaigns</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setDialogOpen(true)}>Create Campaign</Button>
-          <Button variant="outline" onClick={() => setGenerateDialogOpen(true)}>Generate Test Campaigns</Button>
+          <Button className="cursor-pointer" onClick={() => setDialogOpen(true)}>Create Campaign</Button>
+          <Button className="cursor-pointer" variant="outline" onClick={() => setGenerateDialogOpen(true)}>Generate Test Campaigns</Button>
         </div>
       </div>
 
