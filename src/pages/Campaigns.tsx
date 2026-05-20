@@ -19,7 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { api, type CampaignResponse } from "@/lib/api";
+import { api, type CampaignResponse, type GenerateTestCampaignsResponse } from "@/lib/api";
 import { toast } from "sonner";
 
 interface CreateCampaignRequest {
@@ -35,6 +35,8 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<CampaignResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [generateCount, setGenerateCount] = useState(5);
   const [formData, setFormData] = useState<CreateCampaignRequest>({
     name: "",
     description: "",
@@ -67,6 +69,17 @@ export default function CampaignsPage() {
     }
   };
 
+  const handleGenerateTest = async () => {
+    try {
+      const result = await api.post<GenerateTestCampaignsResponse>("/api/campaigns/generate-test", { count: generateCount });
+      toast.success(`Generated ${result.generated} test campaigns`);
+      setGenerateDialogOpen(false);
+      fetchCampaigns();
+    } catch {
+      toast.error("Failed to generate test campaigns");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       ACTIVE: "default",
@@ -84,7 +97,10 @@ export default function CampaignsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Campaigns</h1>
           <p className="text-muted-foreground">Manage promotion campaigns</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>Create Campaign</Button>
+        <div className="flex gap-2">
+          <Button onClick={() => setDialogOpen(true)}>Create Campaign</Button>
+          <Button variant="outline" onClick={() => setGenerateDialogOpen(true)}>Generate Test Campaigns</Button>
+        </div>
       </div>
 
       <Card>
@@ -168,6 +184,24 @@ export default function CampaignsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate Test Campaigns</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="count">Number of Campaigns</Label>
+              <Input id="count" type="number" value={generateCount} onChange={(e) => setGenerateCount(Number(e.target.value))} min={1} max={100} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGenerateDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleGenerateTest}>Generate</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

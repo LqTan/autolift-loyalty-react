@@ -304,3 +304,41 @@ export interface CampaignResponse {
   budgetAmount: number;
   budgetCurrency: string;
 }
+
+export interface GenerateTestCampaignsRequest {
+  count: number;
+}
+
+export interface TestCampaignResult {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface GenerateTestCampaignsResponse {
+  generated: number;
+  campaigns: TestCampaignResult[];
+}
+
+export interface CampaignBatchItem {
+  name: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  budgetAmount?: number;
+  budgetCurrency?: string;
+}
+
+export interface CreateBatchCampaignsRequest {
+  campaigns: CampaignBatchItem[];
+}
+
+export interface BatchCampaignResult {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export interface CreateBatchCampaignsResponse {
+  created: BatchCampaignResult[];
+}
