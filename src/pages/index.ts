@@ -1,0 +1,12 @@
+export { default as LoginPage } from "./Login";
+export { default as DashboardPage } from "./Dashboard";
+export { default as CampaignsPage } from "./Campaigns";
+export { default as CustomersPage } from "./Customers";
+export { default as VouchersPage } from "./Vouchers";
+export { default as PromotionsPage } from "./Promotions";
+export { default as TargetingPage } from "./Targeting";
+export { default as GpRulesPage } from "./GpRules";
+export { default as NotificationsPage } from "./Notifications";
+export { default as LoyaltyPage } from "./Loyalty";
+export { default as MlJobsPage } from "./MlJobs";
+export { default as SandboxPage } from "./Sandbox";
