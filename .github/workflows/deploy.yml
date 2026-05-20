@@ -25,7 +25,21 @@ jobs:
           VITE_API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: npm run build
 
-      - name: Deploy to VPS via SSH
+      - name: Package dist
+        run: tar -czf dist.tar.gz dist
+
+      - name: Deploy to VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          source: "dist.tar.gz"
+          target: "/tmp/"
+          strip_components: 0
+
+      - name: Extract and restart PM2
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -36,7 +50,6 @@ jobs:
             set -e
 
             APP_DIR="/var/www/autolift-dashboard"
-            CURRENT_DIR=$(pwd)
 
             # Stop old PM2 process if running
             pm2 stop autolift-dashboard 2>/dev/null || true
@@ -44,14 +57,17 @@ jobs:
             # Create app directory if not exists
             mkdir -p $APP_DIR
 
-            # Remove old dist
-            rm -rf $APP_DIR/dist
+            # Remove old files
+            rm -rf $APP_DIR/dist $APP_DIR/.env
 
-            # Copy new dist
-            cp -r $CURRENT_DIR/dist $APP_DIR/
+            # Extract dist from tarball
+            tar -xzf /tmp/dist.tar.gz -C $APP_DIR/
 
             # Create .env file
             echo "VITE_API_BASE_URL=${{ secrets.API_BASE_URL }}" > $APP_DIR/.env
+
+            # Cleanup tarball
+            rm /tmp/dist.tar.gz
 
             # Navigate to app dir and restart PM2
             cd $APP_DIR
