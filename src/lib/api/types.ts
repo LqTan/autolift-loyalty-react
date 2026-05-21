@@ -107,6 +107,8 @@ export interface MlJobResponse {
   createdAt: string;
   startedAt?: string;
   completedAt?: string;
+  progress?: number;
+  message?: string;
 }
 
 export interface CreateLoyaltyAccountRequest {

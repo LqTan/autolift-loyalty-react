@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -18,6 +11,14 @@ import {
 } from "@/components/ui/select";
 import { api, type CampaignResponse, type TargetCustomerResponse } from "@/lib/api";
 
+interface PaginatedCampaignsResponse {
+  content: CampaignResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
 export default function TargetingPage() {
   const [campaigns, setCampaigns] = useState<CampaignResponse[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
@@ -26,10 +27,10 @@ export default function TargetingPage() {
 
   const fetchCampaigns = async () => {
     try {
-      const data = await api.get<CampaignResponse[]>("/api/campaigns");
-      const campaignsArray = Array.isArray(data) ? data : [];
+      const data = await api.get<PaginatedCampaignsResponse>("/api/campaigns?size=1000");
+      const campaignsArray = data.content || [];
       setCampaigns(campaignsArray);
-      if (campaignsArray.length > 0) {
+      if (campaignsArray.length > 0 && !selectedCampaign) {
         setSelectedCampaign(campaignsArray[0].id);
       }
     } catch {
@@ -39,12 +40,14 @@ export default function TargetingPage() {
   };
 
   const fetchCandidates = async (campaignId: string) => {
+    setLoading(true);
     try {
       const data = await api.get<TargetCustomerResponse[]>(`/api/targeting/campaigns/${campaignId}/candidates?limit=100`);
-      setCandidates(data);
+      setCandidates(Array.isArray(data) ? data : []);
     } catch {
       setCandidates([]);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -68,9 +71,14 @@ export default function TargetingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Targeting</h1>
-        <p className="text-muted-foreground">View uplift target customers</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Targeting</h1>
+          <p className="text-muted-foreground">View uplift target customers</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => selectedCampaign && fetchCandidates(selectedCampaign)}>
+          Refresh
+        </Button>
       </div>
 
       <Card>
@@ -102,31 +110,33 @@ export default function TargetingPage() {
             <div className="py-8 text-center text-muted-foreground">Loading...</div>
           ) : candidates.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground">
-              No candidates found for this campaign
+              No candidates found for this campaign. Run Uplift Scoring first.
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer ID</TableHead>
-                  <TableHead>Uplift Score</TableHead>
-                  <TableHead>Segment</TableHead>
-                  <TableHead>Treatment Prob</TableHead>
-                  <TableHead>Control Prob</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {candidates.map((candidate) => (
-                  <TableRow key={candidate.customerId}>
-                    <TableCell className="font-mono text-sm">{candidate.customerId}</TableCell>
-                    <TableCell className="font-medium">{candidate.upliftScore.toFixed(4)}</TableCell>
-                    <TableCell>{getSegmentBadge(candidate.segment)}</TableCell>
-                    <TableCell>{candidate.treatmentProbability.toFixed(4)}</TableCell>
-                    <TableCell>{candidate.controlProbability.toFixed(4)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-auto" style={{ maxHeight: "500px" }}>
+              <table className="w-full caption-bottom text-sm">
+                <thead className="sticky top-0 z-10 bg-card">
+                  <tr>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Customer ID</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Uplift Score</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Segment</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Treatment Prob</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Control Prob</th>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
+                  {candidates.map((candidate) => (
+                    <tr key={candidate.customerId} className="border-b transition-colors hover:bg-muted/50">
+                      <td className="p-2 align-middle font-mono text-sm">{candidate.customerId}</td>
+                      <td className="p-2 align-middle font-medium">{candidate.upliftScore.toFixed(4)}</td>
+                      <td className="p-2 align-middle">{getSegmentBadge(candidate.segment)}</td>
+                      <td className="p-2 align-middle">{candidate.treatmentProbability.toFixed(4)}</td>
+                      <td className="p-2 align-middle">{candidate.controlProbability.toFixed(4)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>

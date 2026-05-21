@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,7 +16,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { api, type MlJobResponse, type JobStatus, type CampaignResponse } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { api, type MlJobResponse, type JobStatus, type CampaignResponse, type CreateMlJobRequest } from "@/lib/api";
+import { toast } from "sonner";
+
+interface PaginatedMlJobsResponse {
+  content: MlJobResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
+interface PaginatedCampaignsResponse {
+  content: CampaignResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
 
 export default function MlJobsPage() {
   const [jobs, setJobs] = useState<MlJobResponse[]>([]);
@@ -24,10 +42,14 @@ export default function MlJobsPage() {
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [campaigns, setCampaigns] = useState<CampaignResponse[]>([]);
 
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollingStatus, setPollingStatus] = useState<JobStatus>("PENDING");
+  const [pollingMessage, setPollingMessage] = useState<string>("");
+
   const fetchCampaigns = async () => {
     try {
-      const data = await api.get<CampaignResponse[]>("/api/campaigns");
-      setCampaigns(Array.isArray(data) ? data : []);
+      const data = await api.get<PaginatedCampaignsResponse>("/api/campaigns?size=1000");
+      setCampaigns(data.content || []);
     } catch {
       setCampaigns([]);
     }
@@ -35,8 +57,8 @@ export default function MlJobsPage() {
 
   const fetchJobs = async (campaignId: string) => {
     try {
-      const data = await api.get<MlJobResponse[]>(`/api/ml/jobs/campaign/${campaignId}`);
-      setJobs(data);
+      const data = await api.get<PaginatedMlJobsResponse>(`/api/ml/jobs/campaign/${campaignId}?size=100`);
+      setJobs(data.content || []);
     } catch {
       setJobs([]);
     }
@@ -56,6 +78,76 @@ export default function MlJobsPage() {
     }
   }, [selectedCampaign]);
 
+  const pollJob = useCallback(async (jobId: string) => {
+    setIsPolling(true);
+    setPollingStatus("PENDING");
+    setPollingMessage("Job queued...");
+
+    const poll = async () => {
+      try {
+        const job = await api.get<MlJobResponse>(`/api/ml/jobs/${jobId}`);
+        setPollingStatus(job.status);
+        setPollingMessage(job.message || job.status);
+
+        if (job.status === "COMPLETED") {
+          setIsPolling(false);
+          if (selectedCampaign) fetchJobs(selectedCampaign);
+          toast.success("Uplift Scoring completed!");
+          return;
+        } else if (job.status === "FAILED") {
+          setIsPolling(false);
+          toast.error(`Job failed: ${job.errorMessage || "Unknown error"}`);
+          return;
+        }
+
+        setTimeout(poll, 3000);
+      } catch {
+        setIsPolling(false);
+        toast.error("Failed to poll job status");
+      }
+    };
+
+    setTimeout(poll, 2000);
+  }, [selectedCampaign]);
+
+  const triggerJob = async (jobType: "UPLIFT_SCORING" | "GP_RULE_EXTRACTION") => {
+    if (!selectedCampaign) {
+      toast.error("Please select a campaign first");
+      return;
+    }
+
+    try {
+      const body: CreateMlJobRequest = {
+        jobType,
+        campaignId: selectedCampaign,
+        modelVersion: "v1",
+        inputParams: {
+          top_k_rate: 0.2,
+          n_estimators: 100,
+        },
+      };
+
+      if (jobType === "GP_RULE_EXTRACTION") {
+        const upliftJobs = jobs.filter(j => j.jobType === "UPLIFT_SCORING" && j.status === "COMPLETED");
+        if (upliftJobs.length > 0) {
+          body.upliftScoreJobId = upliftJobs[0].id;
+        }
+      }
+
+      const job = await api.post<MlJobResponse>("/api/ml/jobs", body);
+
+      if (jobType === "UPLIFT_SCORING") {
+        pollJob(job.id);
+      } else {
+        toast.success(`${jobType} triggered!`);
+        fetchJobs(selectedCampaign);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to trigger job";
+      toast.error(message);
+    }
+  };
+
   const getStatusBadge = (status: JobStatus) => {
     const variants: Record<JobStatus, "default" | "secondary" | "destructive" | "outline"> = {
       PENDING: "secondary",
@@ -63,14 +155,18 @@ export default function MlJobsPage() {
       COMPLETED: "outline",
       FAILED: "destructive",
     };
-    return <Badge variant={variants[status]}>{status}</Badge>;
+    return <Badge variant={variants[status] || "secondary"}>{status}</Badge>;
   };
+
+  const hasUpliftJob = jobs.some(j => j.jobType === "UPLIFT_SCORING");
+  const lastUpliftJob = jobs.find(j => j.jobType === "UPLIFT_SCORING");
+  const canRunGPRules = lastUpliftJob?.status === "COMPLETED";
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">ML Jobs</h1>
-        <p className="text-muted-foreground">Monitor machine learning jobs</p>
+        <p className="text-muted-foreground">Trigger and monitor machine learning pipelines</p>
       </div>
 
       <Card>
@@ -80,7 +176,7 @@ export default function MlJobsPage() {
         <CardContent>
           <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
             <SelectTrigger className="w-[300px]">
-              <SelectValue placeholder="Select a campaign to view ML jobs" />
+              <SelectValue placeholder="Select a campaign" />
             </SelectTrigger>
             <SelectContent>
               {campaigns.map((campaign) => (
@@ -95,7 +191,46 @@ export default function MlJobsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>ML Jobs</CardTitle>
+          <CardTitle>Trigger ML Pipeline</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isPolling && (
+            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
+              <span className="animate-spin text-lg">⟳</span>
+              <span className="text-sm">
+                {getStatusBadge(pollingStatus)} {pollingMessage}
+              </span>
+            </div>
+          )}
+
+          <div className="flex gap-4">
+            <Button
+              onClick={() => triggerJob("UPLIFT_SCORING")}
+              disabled={!selectedCampaign || isPolling}
+            >
+              {hasUpliftJob ? "Re-run Uplift Scoring" : "Run Uplift Scoring"}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() => triggerJob("GP_RULE_EXTRACTION")}
+              disabled={!selectedCampaign || isPolling || !canRunGPRules}
+            >
+              Run GP Rules Extraction
+            </Button>
+          </div>
+
+          {hasUpliftJob && lastUpliftJob?.status !== "COMPLETED" && !canRunGPRules && (
+            <p className="text-sm text-muted-foreground">
+              Complete Uplift Scoring before running GP Rules Extraction
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>ML Jobs History</CardTitle>
         </CardHeader>
         <CardContent>
           {!selectedCampaign ? (
@@ -128,9 +263,9 @@ export default function MlJobsPage() {
                     <TableCell>{job.jobType}</TableCell>
                     <TableCell>{getStatusBadge(job.status)}</TableCell>
                     <TableCell>{job.modelVersion || "-"}</TableCell>
-                    <TableCell>{new Date(job.createdAt).toLocaleString()}</TableCell>
-                    <TableCell>{job.startedAt ? new Date(job.startedAt).toLocaleString() : "-"}</TableCell>
-                    <TableCell>{job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</TableCell>
+                    <TableCell>{new Date(job.createdAt).toLocaleString("en-US", { timeZone: "UTC" })}</TableCell>
+                    <TableCell>{job.startedAt ? new Date(job.startedAt).toLocaleString("en-US", { timeZone: "UTC" }) : "-"}</TableCell>
+                    <TableCell>{job.completedAt ? new Date(job.completedAt).toLocaleString("en-US", { timeZone: "UTC" }) : "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
