@@ -3,14 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +11,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { api, type CampaignResponse, type GenerateTestCampaignsResponse } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -31,9 +23,16 @@ interface CreateCampaignRequest {
   budgetCurrency?: string;
 }
 
+interface PaginatedCampaignsResponse {
+  content: CampaignResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<CampaignResponse[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [generateCount, setGenerateCount] = useState(5);
@@ -43,20 +42,35 @@ export default function CampaignsPage() {
     budgetAmount: 0,
     budgetCurrency: "USD",
   });
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(20);
+  const displayRows = 10;
+  const tableRowHeight = 48;
+  const tableHeaderHeight = 50;
+  const tableMaxHeight = tableHeaderHeight + (displayRows * tableRowHeight);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const fetchCampaigns = async () => {
+    setIsAnimating(true);
     try {
-      const data = await api.get<CampaignResponse[]>("/api/campaigns");
-      setCampaigns(data);
+      const data = await api.get<PaginatedCampaignsResponse>(`/api/campaigns?page=${currentPage}&size=${pageSize}`);
+      setTimeout(() => {
+        setCampaigns(data.content);
+        setTotalElements(data.totalElements);
+        setTotalPages(data.totalPages);
+        setIsAnimating(false);
+      }, 600);
     } catch {
       toast.error("Failed to fetch campaigns");
+      setIsAnimating(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     fetchCampaigns();
-  }, []);
+  }, [currentPage, pageSize]);
 
   const handleCreate = async () => {
     try {
@@ -108,51 +122,89 @@ export default function CampaignsPage() {
           <CardTitle>All Campaigns</CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="py-8 text-center text-muted-foreground">Loading...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Budget</TableHead>
-                  <TableHead>Start Date</TableHead>
-                  <TableHead>End Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {campaigns.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                      No campaigns found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  campaigns.map((campaign) => (
-                    <TableRow key={campaign.id}>
-                      <TableCell>
-                        <div>
+          <div className="relative">
+            {isAnimating && (
+              <div className="absolute inset-x-0 top-0 z-20 h-1 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full bg-primary"
+                  style={{
+                    width: "100%",
+                    animation: "load 0.6s ease-out forwards",
+                  }}
+                />
+                <style>{`@keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(0); } }`}</style>
+              </div>
+            )}
+            <div className="overflow-auto" style={{ maxHeight: `${tableMaxHeight}px` }}>
+              <table className="w-full caption-bottom text-sm">
+                <thead className="sticky top-0 z-10 bg-card">
+                  <tr>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Name</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Status</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Budget</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">Start Date</th>
+                    <th className="h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground">End Date</th>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
+                  {campaigns.length === 0 ? (
+                    <tr className="border-b">
+                      <td colSpan={5} className="p-2 align-middle text-center py-8 text-muted-foreground">
+                        No campaigns found
+                      </td>
+                    </tr>
+                  ) : (
+                    campaigns.map((campaign) => (
+                      <tr key={campaign.id} className="border-b transition-colors hover:bg-muted/50">
+                        <td className="p-2 align-middle">
                           <div className="font-medium">{campaign.name}</div>
                           {campaign.description && (
                             <div className="text-sm text-muted-foreground">{campaign.description}</div>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(campaign.status)}</TableCell>
-                      <TableCell>
-                        {campaign.budgetAmount
-                          ? `${campaign.budgetAmount} ${campaign.budgetCurrency || "USD"}`
-                          : "-"}
-                      </TableCell>
-                      <TableCell>{campaign.startDate ? new Date(campaign.startDate).toLocaleDateString() : "-"}</TableCell>
-                      <TableCell>{campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : "-"}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
+                        </td>
+                        <td className="p-2 align-middle">{getStatusBadge(campaign.status)}</td>
+                        <td className="p-2 align-middle">
+                          {campaign.budgetAmount
+                            ? `${campaign.budgetAmount} ${campaign.budgetCurrency || "USD"}`
+                            : "-"}
+                        </td>
+                        <td className="p-2 align-middle">{campaign.startDate ? new Date(campaign.startDate).toLocaleDateString() : "-"}</td>
+                        <td className="p-2 align-middle">{campaign.endDate ? new Date(campaign.endDate).toLocaleDateString() : "-"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {campaigns.length > 0 && (
+              <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-muted-foreground">
+                  Showing {currentPage * pageSize + 1} to {Math.min((currentPage + 1) * pageSize, totalElements)} of {totalElements.toLocaleString()} campaigns
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                    disabled={currentPage === 0}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage + 1} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={currentPage >= totalPages - 1}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

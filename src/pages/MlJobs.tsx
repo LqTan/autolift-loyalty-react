@@ -27,7 +27,7 @@ export default function MlJobsPage() {
   const fetchCampaigns = async () => {
     try {
       const data = await api.get<CampaignResponse[]>("/api/campaigns");
-      setCampaigns(data);
+      setCampaigns(Array.isArray(data) ? data : []);
     } catch {
       setCampaigns([]);
     }
