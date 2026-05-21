@@ -46,6 +46,10 @@ export default function MlJobsPage() {
   const [pollingStatus, setPollingStatus] = useState<JobStatus>("PENDING");
   const [pollingMessage, setPollingMessage] = useState<string>("");
 
+  const [isGPRulesPolling, setIsGPRulesPolling] = useState(false);
+  const [gpRulesPollingStatus, setGpRulesPollingStatus] = useState<JobStatus>("PENDING");
+  const [gpRulesPollingMessage, setGpRulesPollingMessage] = useState<string>("");
+
   const fetchCampaigns = async () => {
     try {
       const data = await api.get<PaginatedCampaignsResponse>("/api/campaigns?size=1000");
@@ -110,6 +114,38 @@ export default function MlJobsPage() {
     setTimeout(poll, 2000);
   }, [selectedCampaign]);
 
+  const pollGPRules = useCallback(async (jobId: string) => {
+    setIsGPRulesPolling(true);
+    setGpRulesPollingStatus("PENDING");
+    setGpRulesPollingMessage("Job queued...");
+
+    const poll = async () => {
+      try {
+        const job = await api.get<MlJobResponse>(`/api/ml/jobs/${jobId}`);
+        setGpRulesPollingStatus(job.status);
+        setGpRulesPollingMessage(job.message || job.status);
+
+        if (job.status === "COMPLETED") {
+          setIsGPRulesPolling(false);
+          if (selectedCampaign) fetchJobs(selectedCampaign);
+          toast.success("GP Rules Extraction completed!");
+          return;
+        } else if (job.status === "FAILED") {
+          setIsGPRulesPolling(false);
+          toast.error(`Job failed: ${job.errorMessage || "Unknown error"}`);
+          return;
+        }
+
+        setTimeout(poll, 3000);
+      } catch {
+        setIsGPRulesPolling(false);
+        toast.error("Failed to poll GP Rules job status");
+      }
+    };
+
+    setTimeout(poll, 2000);
+  }, [selectedCampaign]);
+
   const triggerJob = async (jobType: "UPLIFT_SCORING" | "GP_RULE_EXTRACTION") => {
     if (!selectedCampaign) {
       toast.error("Please select a campaign first");
@@ -139,8 +175,7 @@ export default function MlJobsPage() {
       if (jobType === "UPLIFT_SCORING") {
         pollJob(job.id);
       } else {
-        toast.success(`${jobType} triggered!`);
-        fetchJobs(selectedCampaign);
+        pollGPRules(job.id);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to trigger job";
@@ -203,6 +238,15 @@ export default function MlJobsPage() {
             </div>
           )}
 
+          {isGPRulesPolling && (
+            <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
+              <span className="animate-spin text-lg">⟳</span>
+              <span className="text-sm">
+                {getStatusBadge(gpRulesPollingStatus)} {gpRulesPollingMessage}
+              </span>
+            </div>
+          )}
+
           <div className="flex gap-4">
             <Button
               onClick={() => triggerJob("UPLIFT_SCORING")}
@@ -214,7 +258,7 @@ export default function MlJobsPage() {
             <Button
               variant="outline"
               onClick={() => triggerJob("GP_RULE_EXTRACTION")}
-              disabled={!selectedCampaign || isPolling || !canRunGPRules}
+              disabled={!selectedCampaign || isGPRulesPolling || !canRunGPRules}
             >
               Run GP Rules Extraction
             </Button>

@@ -18,6 +18,14 @@ import {
 } from "@/components/ui/select";
 import { api, type CampaignResponse, type GpRuleView } from "@/lib/api";
 
+interface PaginatedCampaignsResponse {
+  content: CampaignResponse[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number;
+}
+
 export default function GpRulesPage() {
   const [campaigns, setCampaigns] = useState<CampaignResponse[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
@@ -26,11 +34,10 @@ export default function GpRulesPage() {
 
   const fetchCampaigns = async () => {
     try {
-      const data = await api.get<CampaignResponse[]>("/api/campaigns");
-      const campaignsArray = Array.isArray(data) ? data : [];
-      setCampaigns(campaignsArray);
-      if (campaignsArray.length > 0) {
-        setSelectedCampaign(campaignsArray[0].id);
+      const data = await api.get<PaginatedCampaignsResponse>("/api/campaigns?size=1000");
+      setCampaigns(data.content || []);
+      if (data.content && data.content.length > 0) {
+        setSelectedCampaign(data.content[0].id);
       }
     } catch {
       // silent fail
