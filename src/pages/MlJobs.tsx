@@ -65,7 +65,7 @@ export default function MlJobsPage() {
     }
   };
 
-  const fetchJobs = async (campaignId: string) => {
+  const fetchJobs = useCallback(async (campaignId: string) => {
     try {
       const data = await api.get<PaginatedMlJobsResponse>(`/api/ml/jobs/campaign/${campaignId}?size=100`);
       setJobs(data.content || []);
@@ -73,9 +73,9 @@ export default function MlJobsPage() {
       setJobs([]);
     }
     setLoading(false);
-  };
+  }, []);
 
-  const fetchMetrics = async (jobId: string) => {
+  const fetchMetrics = useCallback(async (jobId: string) => {
     setMetricsLoading(true);
     try {
       const data = await api.get<MlJobMetricsView>(`/api/ml/jobs/${jobId}/metrics`);
@@ -84,7 +84,7 @@ export default function MlJobsPage() {
       setMetrics(null);
     }
     setMetricsLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     fetchCampaigns();
@@ -99,7 +99,7 @@ export default function MlJobsPage() {
       setJobs([]);
       setLoading(false);
     }
-  }, [selectedCampaign]);
+  }, [selectedCampaign, fetchJobs]);
 
   useEffect(() => {
     if (selectedJobId) {
@@ -107,7 +107,7 @@ export default function MlJobsPage() {
     } else {
       setMetrics(null);
     }
-  }, [selectedJobId]);
+  }, [selectedJobId, fetchMetrics]);
 
   const pollJob = useCallback(async (jobId: string) => {
     setIsPolling(true);
