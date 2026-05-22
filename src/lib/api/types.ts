@@ -344,3 +344,44 @@ export interface BatchCampaignResult {
 export interface CreateBatchCampaignsResponse {
   created: BatchCampaignResult[];
 }
+
+export interface UpliftCurvePoint {
+  targetFraction: number;
+  numCustomers: number;
+  observedUplift: number;
+  treatedResponseRate: number;
+  controlResponseRate: number;
+}
+
+export interface QiniCurvePoint {
+  targetFraction: number;
+  numCustomers: number;
+  qini: number;
+  cumTreated: number;
+  cumControl: number;
+  cumTreatedResponders: number;
+  cumControlResponders: number;
+}
+
+export interface StrategySummary {
+  numTargeted: number;
+  expectedIncrementalConversions: number;
+  promotionCost: number;
+  expectedRevenue: number;
+  netProfit: number;
+}
+
+export interface EconomicComparison {
+  massCampaign: StrategySummary;
+  responseTargeting: StrategySummary;
+  upliftTargeting: StrategySummary;
+}
+
+export interface MlJobMetricsView {
+  jobId: string;
+  modelVersion?: string;
+  metrics?: Record<string, unknown>;
+  upliftCurve?: UpliftCurvePoint[];
+  qiniCurve?: QiniCurvePoint[];
+  economicComparison?: EconomicComparison;
+}

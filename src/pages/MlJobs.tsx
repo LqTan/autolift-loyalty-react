@@ -17,8 +17,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { api, type MlJobResponse, type JobStatus, type CampaignResponse, type CreateMlJobRequest } from "@/lib/api";
+import { api, type MlJobResponse, type JobStatus, type CampaignResponse, type CreateMlJobRequest, type MlJobMetricsView } from "@/lib/api";
 import { toast } from "sonner";
+import UpliftCurveChart from "@/components/charts/UpliftCurveChart";
+import QiniCurveChart from "@/components/charts/QiniCurveChart";
+import EconomicComparisonChart from "@/components/charts/EconomicComparisonChart";
 
 interface PaginatedMlJobsResponse {
   content: MlJobResponse[];
@@ -41,6 +44,9 @@ export default function MlJobsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [campaigns, setCampaigns] = useState<CampaignResponse[]>([]);
+  const [metrics, setMetrics] = useState<MlJobMetricsView | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   const [isPolling, setIsPolling] = useState(false);
   const [pollingStatus, setPollingStatus] = useState<JobStatus>("PENDING");
@@ -69,18 +75,39 @@ export default function MlJobsPage() {
     setLoading(false);
   };
 
+  const fetchMetrics = async (jobId: string) => {
+    setMetricsLoading(true);
+    try {
+      const data = await api.get<MlJobMetricsView>(`/api/ml/jobs/${jobId}/metrics`);
+      setMetrics(data);
+    } catch {
+      setMetrics(null);
+    }
+    setMetricsLoading(false);
+  };
+
   useEffect(() => {
     fetchCampaigns();
   }, []);
 
   useEffect(() => {
     if (selectedCampaign) {
+      setMetrics(null);
+      setSelectedJobId(null);
       fetchJobs(selectedCampaign);
     } else {
       setJobs([]);
       setLoading(false);
     }
   }, [selectedCampaign]);
+
+  useEffect(() => {
+    if (selectedJobId) {
+      fetchMetrics(selectedJobId);
+    } else {
+      setMetrics(null);
+    }
+  }, [selectedJobId]);
 
   const pollJob = useCallback(async (jobId: string) => {
     setIsPolling(true);
@@ -298,6 +325,7 @@ export default function MlJobsPage() {
                   <TableHead>Created</TableHead>
                   <TableHead>Started</TableHead>
                   <TableHead>Completed</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -310,6 +338,17 @@ export default function MlJobsPage() {
                     <TableCell>{new Date(job.createdAt).toLocaleString("en-US", { timeZone: "UTC" })}</TableCell>
                     <TableCell>{job.startedAt ? new Date(job.startedAt).toLocaleString("en-US", { timeZone: "UTC" }) : "-"}</TableCell>
                     <TableCell>{job.completedAt ? new Date(job.completedAt).toLocaleString("en-US", { timeZone: "UTC" }) : "-"}</TableCell>
+                    <TableCell>
+                      {job.jobType === "UPLIFT_SCORING" && job.status === "COMPLETED" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedJobId(job.id)}
+                        >
+                          View Metrics
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -317,6 +356,70 @@ export default function MlJobsPage() {
           )}
         </CardContent>
       </Card>
+
+      {selectedJobId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Job Metrics</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {metricsLoading ? (
+              <div className="py-8 text-center text-muted-foreground">Loading metrics...</div>
+            ) : metrics ? (
+              <div className="space-y-6">
+                <div className="text-sm text-muted-foreground">
+                  Job ID: {metrics.jobId} | Model Version: {metrics.modelVersion || "N/A"}
+                </div>
+              </div>
+            ) : (
+              <div className="py-8 text-center text-muted-foreground">No metrics available</div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {metrics && (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle>Uplift Curve</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {metrics.upliftCurve && metrics.upliftCurve.length > 0 ? (
+                <UpliftCurveChart data={metrics.upliftCurve} />
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">No uplift curve data available</div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Qini Curve</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {metrics.qiniCurve && metrics.qiniCurve.length > 0 ? (
+                <QiniCurveChart data={metrics.qiniCurve} />
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">No Qini curve data available</div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Economic Comparison</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {metrics.economicComparison ? (
+                <EconomicComparisonChart data={metrics.economicComparison} />
+              ) : (
+                <div className="py-8 text-center text-muted-foreground">No economic comparison data available</div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
