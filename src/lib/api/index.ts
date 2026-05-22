@@ -1,6 +1,6 @@
 import { getAuthToken, setAuthToken, clearAuthToken } from "./client";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || "";
+const baseURL = import.meta.env.VITE_API_PROXY_URL || "";
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
