@@ -43,28 +43,36 @@ export default function EconomicComparisonChart({ data }: EconomicComparisonChar
   ];
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" />
-        <YAxis
-          yAxisId="left"
-          orientation="left"
-          label={{ value: "Targeted / Conversions", angle: -90, position: "insideLeft" }}
-        />
-        <YAxis
-          yAxisId="right"
-          orientation="right"
-          label={{ value: "Revenue / Cost / Profit", angle: 90, position: "insideRight" }}
-        />
-        <Tooltip formatter={(value) => Number(value).toLocaleString()} />
-        <Legend />
-        <Bar yAxisId="left" dataKey="targeted" name="Num Targeted" fill="#8884d8" />
-        <Bar yAxisId="left" dataKey="conversions" name="Expected Conversions" fill="#82ca9d" />
-        <Bar yAxisId="right" dataKey="cost" name="Promotion Cost" fill="#ffc658" />
-        <Bar yAxisId="right" dataKey="revenue" name="Expected Revenue" fill="#ff7300" />
-        <Bar yAxisId="right" dataKey="profit" name="Net Profit" fill="#00C49F" />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="grid grid-cols-1 gap-6">
+      <div>
+        <h4 className="text-sm font-medium mb-2 text-center">Counts</h4>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis label={{ value: "Count", angle: -90, position: "insideLeft" }} />
+            <Tooltip formatter={(value) => Number(value).toLocaleString()} />
+            <Legend />
+            <Bar dataKey="targeted" name="Num Targeted" fill="#8884d8" />
+            <Bar dataKey="conversions" name="Expected Conversions" fill="#82ca9d" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium mb-2 text-center">Financials</h4>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis label={{ value: "Currency", angle: -90, position: "insideLeft" }} />
+            <Tooltip formatter={(value) => Number(value).toLocaleString()} />
+            <Legend />
+            <Bar dataKey="cost" name="Promotion Cost" fill="#ffc658" />
+            <Bar dataKey="revenue" name="Expected Revenue" fill="#ff7300" />
+            <Bar dataKey="profit" name="Net Profit" fill="#00C49F" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
